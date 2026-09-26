@@ -1514,7 +1514,7 @@ def apply_semantic_remediations_to_file(
                 modified_code = modified_code.replace(old_cat_sql, new_cat_sql)
                 applied_changes.append(f"[{fid}] Parameterized catalog query with bound variables neutralizing SQL injection and search index data leakage.")
 
-            # Pattern C: Dynamic LIKE SQL query e.g. cursor.execute(f'SELECT * FROM products WHERE name LIKE "%{q}%"')
+            # Pattern C: Dynamic LIKE SQL query e.g. cursor.execute("SELECT * FROM products WHERE name LIKE ?", (f"%{q}%",))
             m_like_sqli = re.search(r'cursor\.execute\(f[\'"](SELECT\s+.+?\s+WHERE\s+.+?\s+LIKE\s+)["\']%\{(\w+)\}%["\'][\'"]\)', modified_code, re.IGNORECASE)
             if m_like_sqli:
                 full_m = m_like_sqli.group(0)
