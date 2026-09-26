@@ -1,0 +1,776 @@
+<USER_REQUEST>
+TRACEGATE — FINAL SURGICAL FIX: REMOVE HIDDEN app.py REMEDIATION TARGET OVERRIDE
+
+CRITICAL:
+
+The AI Fix source-discovery work has been attempted, but the final remediation result STILL modifies only:
+
+app.py
+
+for all vulnerabilities in many test runs.
+
+This means the problem is likely NOT only repository discovery.
+
+A later stage is apparently overriding the correctly discovered source files and forcing:
+
+app.py
+
+as the effective remediation target.
+
+DO NOT MODIFY THE VULNERABLE TEST REPOSITORIES.
+
+FIX TRACEGATE ONLY.
+
+============================================================
+STRICT SCOPE
+============
+
+This task is ONLY to find and remove the hidden app.py target override inside the AI Fix pipeline.
+
+DO NOT MODIFY:
+
+* Checklist Generation
+* Report Generation
+* Certificate
+* GitHub Pull Request
+* GitHub branch/commit/push
+* GitHub OAuth
+* PostgreSQL/database
+* Project persistence
+* Login
+* Dashboard
+* Projects
+* Confirmed Findings
+* PoC/evidence
+* Analytics
+* Password reset
+* AI Fix performance optimization
+* Patch/diff implementation
+* Validation implementation
+* Post-write verification
+
+Do not redesign the UI.
+
+Do not refactor unrelated code.
+
+============================================================
+THE ACTUAL PROBLEM
+==================
+
+Observed behavior:
+
+Repository contains vulnerabilities across different files.
+
+Example:
+
+README.md
+sql_vulnerable.py
+
+But AI Fix remediation still behaves as though:
+
+target_file = app.py
+
+In another repository, a single finding can sometimes correctly modify 2–3 files, proving the remediation engine CAN support multi-file fixes.
+
+But other runs collapse everything to:
+
+app.py
+
+Therefore find the exact place where the final remediation target is being overridden.
+
+============================================================
+PART 1 — TRACE THE FULL TARGET-FILE DATA FLOW
+=============================================
+
+Start at the UI selection and trace ALL the way to the actual patch target.
+
+Trace:
+
+Selected Repository
+↓
+Selected Branch
+↓
+Selected Finding(s)
+↓
+Repository Tree
+↓
+Source Discovery
+↓
+Candidate Files
+↓
+Relevant Source Files
+↓
+Finding Source Map
+↓
+AI Fix Request Payload
+↓
+Backend Request Model
+↓
+Remediation Service
+↓
+Patch Planner
+↓
+Patch Target Resolver
+↓
+Actual Modified Files
+
+At every step record:
+
+repository
+branch
+finding_id
+candidate_files
+relevant_source_files
+selected_files
+target_file
+primary_file
+file_paths
+modified_files
+
+Find where:
+
+correct multi-file source information
+
+becomes:
+
+app.py
+
+============================================================
+PART 2 — SEARCH THE ENTIRE CODEBASE FOR app.py TARGET OVERRIDES
+===============================================================
+
+Search for every occurrence and usage pattern related to:
+
+"app.py"
+
+target_file
+primary_file
+source_file
+selected_file
+selectedFiles
+selected_files
+candidateFiles
+candidate_files
+discoveredFiles
+discovered_files
+scopedFiles
+scoped_files
+files[0]
+selectedFiles[0]
+candidateFiles[0]
+firstFile
+first_file
+defaultFile
+default_file
+fallbackFile
+fallback_file
+defaultSource
+fallbackSource
+
+Also search for logic equivalent to:
+
+if not files:
+use app.py
+
+or:
+
+target_file = files[0]
+
+or:
+
+target_file = "app.py"
+
+or:
+
+files = ["app.py"]
+
+or:
+
+selected_files = discovered_files[:1]
+
+or:
+
+primary_file = discovered_files[0]
+
+Do NOT remove legitimate UI references to app.py examples.
+
+Identify only code that can influence ACTUAL remediation.
+
+============================================================
+PART 3 — IMPORTANT: CHECK DOWNSTREAM OVERRIDE
+=============================================
+
+Do not assume the bug is in repository discovery.
+
+Specifically inspect whether:
+
+Source Discovery
+
+correctly returns:
+
+[
+"sql_vulnerable.py"
+]
+
+but a later function converts it to:
+
+target_file:
+"app.py"
+
+This is the critical test.
+
+If discovery returns correct files but remediation receives app.py:
+
+FIX THE DOWNSTREAM MAPPING.
+
+Do not rewrite discovery unnecessarily.
+
+============================================================
+PART 4 — CHECK FRONTEND REQUEST PAYLOAD
+=======================================
+
+Inspect the actual network/API payload generated when the user clicks:
+
+Analyze Repository & Propose Secure Fix
+
+For one finding, determine what the frontend actually sends.
+
+Record fields such as:
+
+repository
+branch
+finding_id
+selected_files
+source_files
+target_file
+scope
+mode
+
+Verify whether the frontend is itself sending:
+
+app.py
+
+even when the selected repository contains another file.
+
+If frontend sends the wrong file:
+
+fix only the AI Fix source-target payload construction.
+
+Do not modify unrelated UI.
+
+============================================================
+PART 5 — CHECK BACKEND REQUEST NORMALIZATION
+============================================
+
+Inspect the backend request model/service.
+
+Determine whether incoming:
+
+relevant_source_files
+
+is being overwritten by:
+
+target_file
+primary_file
+default_file
+app.py
+
+Do not allow a generic default to replace a valid repository-scoped source map.
+
+============================================================
+PART 6 — FINDING-SPECIFIC TARGETS
+=================================
+
+Every finding must carry its own actual source mapping.
+
+Example:
+
+Finding A:
+sql_vulnerable.py
+
+Finding B:
+auth.py
+
+Finding C:
+profile.py + routes.py
+
+Finding D:
+database.py
+
+Do NOT create:
+
+global_target_file
+
+for the entire remediation run.
+
+Do NOT assign:
+
+app.py
+
+to every finding.
+
+============================================================
+PART 7 — MULTI-FILE TARGETS
+===========================
+
+If a finding has:
+
+relevant_source_files = [
+"file_a.py",
+"file_b.py",
+"file_c.py"
+]
+
+all three must remain available to the existing remediation engine.
+
+Do not reduce them to:
+
+file_a.py
+
+Do not use:
+
+files[0]
+
+as the complete target.
+
+============================================================
+PART 8 — SINGLE-FINDING CASE
+============================
+
+Test one SQL Injection finding in:
+
+sql_vulnerable.py
+
+Repository:
+
+README.md
+sql_vulnerable.py
+
+Expected flow:
+
+Finding
+→ relevant_source_files = ["sql_vulnerable.py"]
+→ existing remediation engine
+→ sql_vulnerable.py
+
+Expected:
+
+app.py MUST NOT appear anywhere in the final remediation target list.
+
+============================================================
+PART 9 — MULTI-FILE SINGLE FINDING
+==================================
+
+Use a finding that previously successfully modified 2–3 files.
+
+Capture the source map BEFORE remediation.
+
+Verify all relevant files reach the remediation engine.
+
+If it currently works, preserve that behavior.
+
+The goal is to make the single-file and multi-file cases consistent.
+
+============================================================
+PART 10 — BULK FINDING CASE
+===========================
+
+For:
+
+Remediate All
+
+with 8–10 findings:
+
+create a separate source map per finding.
+
+Example:
+
+F1 → auth.py
+F2 → profile.py
+F3 → upload.py + storage.py
+F4 → routes.py
+F5 → database.py
+
+Do NOT produce:
+
+All findings → app.py
+
+============================================================
+PART 11 — REPOSITORY WITHOUT APP.PY
+===================================
+
+This is a mandatory acceptance test.
+
+Use:
+
+README.md
+sql_vulnerable.py
+
+There is NO app.py.
+
+Run SQL Injection remediation.
+
+Expected:
+
+Tracegate identifies:
+
+sql_vulnerable.py
+
+and sends it to the existing remediation engine.
+
+If the system still reports:
+
+0 source files
+
+then the hidden target override/source resolver is NOT fixed.
+
+Continue tracing until the correct source is passed downstream.
+
+============================================================
+PART 12 — REPOSITORY WITH APP.PY
+================================
+
+Use a repository where app.py genuinely contains the vulnerability.
+
+Expected:
+
+app.py can still be selected.
+
+This proves we are NOT banning app.py.
+
+We are removing only the unconditional/default dependency.
+
+============================================================
+PART 13 — VERIFY THE ACTUAL FILE MODIFIED
+=========================================
+
+After remediation starts, inspect the actual modified-file list.
+
+For each modified file verify:
+
+It exists in selected repository.
+
+It belongs to selected branch.
+
+It belongs to current source SHA.
+
+It was actually identified by the finding source map.
+
+No file should appear only because it is:
+
+default
+fallback
+first candidate
+previous target.
+
+============================================================
+PART 14 — CHECK FOR STALE GLOBAL STATE
+======================================
+
+Inspect whether the final target file comes from:
+
+global state
+previous project
+previous repository
+localStorage
+sessionStorage
+singleton object
+module-level variable
+global array
+previous remediation result
+
+A previous run must never force:
+
+app.py
+
+into a new repository/finding.
+
+============================================================
+PART 15 — CHECK SOURCE MAP SERIALIZATION
+========================================
+
+Inspect:
+
+frontend state
+→ API payload
+→ backend model
+→ database/cache/job state
+→ remediation worker
+
+Ensure multi-file arrays are preserved correctly.
+
+Example:
+
+Frontend:
+
+[
+"auth.py",
+"middleware.py"
+]
+
+must not become:
+
+"auth.py"
+
+or:
+
+"app.py"
+
+during serialization/deserialization.
+
+============================================================
+PART 16 — CHECK BULK MAP AGGREGATION
+====================================
+
+For bulk mode verify that source mappings are keyed by:
+
+finding_id
+
+not by:
+
+file
+severity
+index
+first finding
+global target
+
+Example:
+
+{
+"F001": ["auth.py"],
+"F002": ["profile.py"],
+"F003": ["upload.py", "storage.py"]
+}
+
+Do not collapse the map into one:
+
+target_file.
+
+============================================================
+PART 17 — PRESERVE EXISTING WORKING MULTI-FILE BEHAVIOR
+=======================================================
+
+You previously demonstrated that one vulnerability can correctly modify 3 files.
+
+Do NOT replace or simplify the working multi-file mechanism.
+
+Use it as the reference implementation.
+
+Compare:
+
+Successful single-finding multi-file path
+
+against:
+
+Failing single/bulk app.py path.
+
+Identify the exact difference.
+
+Reuse the working source-target propagation rather than rewriting the remediation engine.
+
+============================================================
+PART 18 — NO PATCH ENGINE CHANGES
+=================================
+
+Once the correct target files reach the remediation engine:
+
+STOP.
+
+Do not change:
+
+patch generation
+patch application
+duplicate handling
+diff
+Before/After
+validation
+GitHub commit
+PR
+
+Those are outside this task.
+
+============================================================
+PART 19 — EXACT DEBUG OUTPUT
+============================
+
+For each test run output:
+
+REPOSITORY
+BRANCH
+FINDING ID
+DISCOVERED FILES
+RELEVANT FILES
+FILES SENT TO REMEDIATION
+FINAL TARGET FILES
+MODIFIED FILES
+
+This must make it immediately obvious where app.py is being introduced.
+
+Example expected:
+
+Repository:
+owner/repo
+
+Finding:
+FIND-001
+
+Discovered:
+sql_vulnerable.py
+
+Relevant:
+sql_vulnerable.py
+
+Sent to remediation:
+sql_vulnerable.py
+
+Final target:
+sql_vulnerable.py
+
+Modified:
+sql_vulnerable.py
+
+If any stage says:
+
+app.py
+
+when it should not, identify that exact function.
+
+============================================================
+PART 20 — ACCEPTANCE TESTS
+==========================
+
+TEST 1 — SQL repository
+
+Files:
+
+README.md
+sql_vulnerable.py
+
+Finding:
+
+SQL Injection
+
+Expected final target:
+
+sql_vulnerable.py
+
+NOT app.py.
+
+---
+
+TEST 2 — Repository with app.py
+
+Finding genuinely in app.py.
+
+Expected:
+
+app.py.
+
+---
+
+TEST 3 — Repository with vulnerability in another file
+
+Expected:
+
+actual vulnerable file.
+
+---
+
+TEST 4 — Multi-file finding
+
+Expected:
+
+all relevant files.
+
+---
+
+TEST 5 — Bulk 8 findings
+
+Expected:
+
+each finding retains its own file map.
+
+No global app.py target.
+
+---
+
+TEST 6 — Bulk 9–10 findings
+
+Expected:
+
+same behavior.
+
+---
+
+TEST 7 — Different repository after previous app.py run
+
+Expected:
+
+NO stale app.py leakage.
+
+============================================================
+PART 21 — FINAL ACCEPTANCE
+==========================
+
+This task is successful only when:
+
+1. app.py is not an automatic remediation target.
+2. app.py is still usable when genuinely relevant.
+3. Selected repository is the only source repository.
+4. Actual repository files are passed downstream.
+5. Single finding uses its own source map.
+6. Bulk uses a separate source map for every finding.
+7. Multi-file mappings survive end-to-end.
+8. A repository without app.py still works.
+9. Different repositories produce different targets.
+10. Previous repository state cannot force app.py.
+11. No files outside selected repository reach remediation.
+12. Existing working remediation engine is preserved.
+13. No patch/PR/report/checklist/certificate code is modified.
+
+============================================================
+FINAL REPORT
+============
+
+Return:
+
+1. EXACT location where app.py was being forced.
+2. Whether the problem was frontend, backend, serialization, cache, or remediation-target mapping.
+3. Exact file/function changed.
+4. Before behavior.
+5. After behavior.
+6. SQL repository test result.
+7. Repository-without-app.py result.
+8. Repository-with-app.py result.
+9. Multi-file result.
+10. Bulk 8-finding result.
+11. Bulk 9–10-finding result.
+12. Cross-repository isolation result.
+13. Confirmation that only source-target mapping was changed.
+
+IMPORTANT:
+
+If app.py is STILL selected for a repository where it does not exist, DO NOT declare success.
+
+If a repository without app.py still produces:
+
+“No source files”
+
+DO NOT declare success.
+
+DO NOT make additional unrelated changes.
+
+FINAL RULE:
+
+Only fix the hidden app.py / incorrect target-file override.
+
+Everything else in Tracegate must remain untouched.
+
+At the end state:
+
+“APP.PY TARGET OVERRIDE REMOVED — remediation now receives the actual finding-specific source files from the selected repository.”
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-26T05:49:39+05:30.
+</ADDITIONAL_METADATA>

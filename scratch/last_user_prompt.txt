@@ -1,0 +1,151 @@
+<USER_REQUEST>
+TRACEGATE — FINAL SURGICAL FIX: REMOVE HIDDEN app.py REMEDIATION TARGET OVERRIDE
+
+CRITICAL:
+
+The AI Fix source-discovery work has been attempted, but the final remediation result STILL modifies only:
+
+app.py
+
+for all vulnerabilities in many test runs.
+
+This means the problem is likely NOT only repository discovery.
+
+A later stage is apparently overriding the correctly discovered source files and forcing:
+
+app.py
+
+as the effective remediation target.
+
+DO NOT MODIFY THE VULNERABLE TEST REPOSITORIES.
+
+FIX TRACEGATE ONLY.
+
+============================================================
+STRICT SCOPE
+============
+
+This task is ONLY to find and remove the hidden app.py target override inside the AI Fix pipeline.
+
+DO NOT MODIFY:
+
+* Checklist Generation
+* Report Generation
+* Certificate
+* GitHub Pull Request
+* GitHub branch/commit/push
+* GitHub OAuth
+* PostgreSQL/database
+* Project persistence
+* Login
+* Dashboard
+* Projects
+* Confirmed Findings
+* PoC/evidence
+* Analytics
+* Password reset
+* AI Fix performance optimization
+* Patch/diff implementation
+* Validation implementation
+* Post-write verification
+
+Do not redesign the UI.
+
+Do not refactor unrelated code.
+
+============================================================
+THE ACTUAL PROBLEM
+==================
+
+Observed behavior:
+
+Repository contains vulnerabilities across different files.
+
+Example:
+
+README.md
+sql_vulnerable.py
+
+But AI Fix remediation still behaves as though:
+
+target_file = app.py
+
+In another repository, a single finding can sometimes correctly modify 2–3 files, proving the remediation engine CAN support multi-file fixes.
+
+But other runs collapse everything to:
+
+app.py
+
+Therefore find the exact place where the final remediation target is being overridden.
+
+============================================================
+PART 1 — TRACE THE FULL TARGET-FILE DATA FLOW
+=============================================
+
+Start at the UI selection and trace ALL the way to th
+<truncated 10825 bytes>
+PTANCE
+==========================
+
+This task is successful only when:
+
+1. app.py is not an automatic remediation target.
+2. app.py is still usable when genuinely relevant.
+3. Selected repository is the only source repository.
+4. Actual repository files are passed downstream.
+5. Single finding uses its own source map.
+6. Bulk uses a separate source map for every finding.
+7. Multi-file mappings survive end-to-end.
+8. A repository without app.py still works.
+9. Different repositories produce different targets.
+10. Previous repository state cannot force app.py.
+11. No files outside selected repository reach remediation.
+12. Existing working remediation engine is preserved.
+13. No patch/PR/report/checklist/certificate code is modified.
+
+============================================================
+FINAL REPORT
+============
+
+Return:
+
+1. EXACT location where app.py was being forced.
+2. Whether the problem was frontend, backend, serialization, cache, or remediation-target mapping.
+3. Exact file/function changed.
+4. Before behavior.
+5. After behavior.
+6. SQL repository test result.
+7. Repository-without-app.py result.
+8. Repository-with-app.py result.
+9. Multi-file result.
+10. Bulk 8-finding result.
+11. Bulk 9–10-finding result.
+12. Cross-repository isolation result.
+13. Confirmation that only source-target mapping was changed.
+
+IMPORTANT:
+
+If app.py is STILL selected for a repository where it does not exist, DO NOT declare success.
+
+If a repository without app.py still produces:
+
+“No source files”
+
+DO NOT declare success.
+
+DO NOT make additional unrelated changes.
+
+FINAL RULE:
+
+Only fix the hidden app.py / incorrect target-file override.
+
+Everything else in Tracegate must remain untouched.
+
+At the end state:
+
+“APP.PY TARGET OVERRIDE REMOVED — remediation now receives the actual finding-specific source files from the selected repository.”
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-26T05:49:39+05:30.
+</ADDITIONAL_METADATA>
