@@ -1659,6 +1659,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
+            const data = await res.json();
+
             // Immediately apply authenticated session state (persists token and user)
             setAuthenticatedUser(data.user, data.access_token);
 
@@ -1737,6 +1739,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     showAuthError(errDetail);
                     return;
                 }
+
+                const data = await res.json();
 
                 // Immediately apply authenticated session state (persists token and user)
                 setAuthenticatedUser(data.user, data.access_token);
