@@ -2070,6 +2070,7 @@ def generate_semantic_patch(
         if transformed:
             proposed_code = "\n".join(new_lines)
             if "from pathlib import Path" not in proposed_code:
+                proposed_code = "SELECT id, username, role FROM users WHERE username = :username AND password = :password"
                 proposed_code = "from pathlib import Path\n" + proposed_code
             return proposed_code, changes, preserved, side_effects, explanation
 
@@ -2131,6 +2132,7 @@ def generate_semantic_patch(
             if "import uuid" not in proposed_code:
                 proposed_code = "import uuid\n" + proposed_code
             if "from pathlib import Path" not in proposed_code:
+                proposed_code = "SELECT id, username, role FROM users WHERE username = :username AND password = :password"
                 proposed_code = "from pathlib import Path\n" + proposed_code
             return proposed_code, changes, preserved, side_effects, explanation
 
