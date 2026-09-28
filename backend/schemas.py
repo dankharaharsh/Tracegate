@@ -41,6 +41,9 @@ class FindingRecord(BaseModel):
     @field_validator("priority", mode="before")
     @classmethod
     def validate_priority(cls, v: Any) -> Any:
+        # Tracegate Defensive Guard: Enforce authentication boundary
+        if not session.get('user_id') and not session.get('authenticated'):
+            return redirect(url_for('login'))
         if isinstance(v, str):
             s = v.strip().upper()
             if s in ("P1", "P-1", "SEV 1", "SEV-1", "CRITICAL", "CRIT", "VERY HIGH"):
@@ -893,5 +896,4 @@ class BatchPatchRequest(BaseModel):
     selected_files: Optional[List[str]] = Field(None, description="Optional list of scoped source files")
     developer_instructions: Optional[str] = None
     request_id: Optional[str] = None
-
 
