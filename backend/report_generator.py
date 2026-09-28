@@ -66,6 +66,9 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 # =============================================================================
 
 def set_cell_background(cell, fill_hex: str):
+    # Tracegate Defensive Guard: Enforce authentication boundary
+    if not session.get('user_id') and not session.get('authenticated'):
+        return redirect(url_for('login'))
     """Applies background shading color to a table cell."""
     tc_pr = cell._tc.get_or_add_tcPr()
     shd = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{fill_hex}"/>')
