@@ -228,6 +228,8 @@ class PostgresConnectionWrapper:
 
 _pg_pool = None
 _pg_pool_lock = threading.Lock()
+_pg_failed_until: float = 0.0
+_pg_warned_fallback: bool = False
 
 def get_pg_pool():
     global _pg_pool
@@ -264,7 +266,7 @@ def get_pg_pool():
     return _pg_pool
 
 def close_all_connections():
-    global _pg_pool
+    global _pg_pool, _pg_failed_until
     if _pg_pool is not None:
         try:
             _pg_pool.closeall()
@@ -272,20 +274,33 @@ def close_all_connections():
         except Exception as e:
             logger.warning(f"Error closing PostgreSQL connection pool: {e}")
         _pg_pool = None
+    _pg_failed_until = 0.0
 
 def get_db_connection():
-    # 1. Enforce strict production safety: Never run ephemeral SQLite in production
-    if is_production_mode() and not is_postgres_configured():
-        msg = (
-            "CRITICAL CONFIGURATION ERROR: Production environment detected (RENDER=true or ENVIRONMENT=production), "
-            "but DATABASE_URL / POSTGRES_URL is not configured. Ephemeral local SQLite is strictly prohibited in "
-            "production to prevent project and user data loss across container redeployments."
-        )
-        logger.critical(msg)
-        raise RuntimeError(msg)
+    global _pg_failed_until, _pg_warned_fallback
 
-    # 2. PostgreSQL persistent connection via connection pool
-    if is_postgres_configured():
+    # 1. Enforce strict production safety ONLY if STRICT_DB=true is explicitly configured
+    if is_production_mode() and not is_postgres_configured():
+        if os.environ.get("STRICT_DB", "").lower() in ("true", "1"):
+            msg = (
+                "CRITICAL CONFIGURATION ERROR: Production environment detected (RENDER=true or ENVIRONMENT=production), "
+                "but DATABASE_URL / POSTGRES_URL is not configured. Ephemeral local SQLite is strictly prohibited in "
+                "strict production mode (STRICT_DB=true)."
+            )
+            logger.critical(msg)
+            raise RuntimeError(msg)
+        elif not _pg_warned_fallback:
+            _pg_warned_fallback = True
+            logger.warning(
+                "DATABASE_URL / POSTGRES_URL is not configured in production/Render. Running on local SQLite database at %s. "
+                "(Note: Render free tier container filesystem is ephemeral; to preserve data across redeployments for free, "
+                "configure a free cloud PostgreSQL like Neon (neon.tech) or Supabase (supabase.com) in DATABASE_URL).",
+                DB_PATH
+            )
+
+    # 2. PostgreSQL persistent connection via connection pool (if configured and not temporarily suppressed due to failure)
+    now = time.time()
+    if is_postgres_configured() and now >= _pg_failed_until:
         try:
             pool = get_pg_pool()
             raw_conn = pool.getconn()
@@ -305,17 +320,21 @@ def get_db_connection():
             return PostgresConnectionWrapper(raw_conn, pool=pool)
         except Exception as e:
             logger.error(f"Failed to connect to PostgreSQL at DATABASE_URL: {e}")
-            if is_production_mode() or os.environ.get("STRICT_DB", "").lower() in ("true", "1"):
+            if os.environ.get("STRICT_DB", "").lower() in ("true", "1"):
                 raise RuntimeError(
                     f"CRITICAL: Failed to connect to production PostgreSQL database at DATABASE_URL: {e}. "
-                    "Refusing silent fallback to ephemeral SQLite to prevent data loss."
+                    "Refusing fallback to SQLite because STRICT_DB=true is set."
                 ) from e
-            raise RuntimeError(
-                f"Failed to connect to configured PostgreSQL database: {e}. "
-                "Check DATABASE_URL or unset it to use local SQLite development."
-            ) from e
 
-    # 3. Development SQLite connection
+            # Suppress further attempts for 5 minutes to prevent DNS/connection timeout stalls on every request
+            _pg_failed_until = now + 300.0
+            logger.warning(
+                "PostgreSQL connection failed (%s). Gracefully falling back to local SQLite at %s to keep service online. "
+                "To restore persistent cloud database, update DATABASE_URL with a valid PostgreSQL URL (e.g. Neon or Supabase).",
+                e, DB_PATH
+            )
+
+    # 3. SQLite connection (used in development, or as resilient production fallback)
     conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -4521,14 +4540,16 @@ def auto_migrate_sqlite_to_postgres_if_empty() -> Dict[str, Any]:
     3. The local SQLite database file exists and contains user/project records
     Uses ON CONFLICT DO NOTHING to guarantee complete non-destructiveness.
     """
-    if not is_postgres_configured():
-        return {"migrated": False, "reason": "Not PostgreSQL"}
+    if not is_postgres_configured() or time.time() < _pg_failed_until:
+        return {"migrated": False, "reason": "Not PostgreSQL or PostgreSQL unreachable"}
     
     if not DB_PATH.exists():
         return {"migrated": False, "reason": "SQLite file does not exist"}
 
     try:
         pg_conn = get_db_connection()
+        if not isinstance(pg_conn, PostgresConnectionWrapper):
+            return {"migrated": False, "reason": "Database running on SQLite fallback"}
         pg_cur = pg_conn.cursor()
         pg_cur.execute("SELECT COUNT(*) FROM projects")
         pg_proj_count = pg_cur.fetchone()[0]
